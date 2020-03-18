@@ -4,5 +4,5 @@
     - docker-compose
     - pip
     - docker-sdk
-    # - environment
-    # - services
+    - environment
+    - services

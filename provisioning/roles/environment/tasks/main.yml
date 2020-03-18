@@ -12,3 +12,21 @@
   file:
     path: /vagrant/.env
     mode: go-rwx
+- name: Create a minio access key in env file
+  lineinfile:
+    path: /vagrant/.env
+    line: MINIO_ACCESS_KEY={{ lookup('password', 'accesskey chars=ascii_uppercase,digits length=20') }}
+  when: env_file.stat.exists == False
+- name: Remove the stored access key file
+  file:
+    path: /vagrant/provisioning/accesskey
+    state: absent
+- name: Create a minio secret key in env file
+  lineinfile:
+    path: /vagrant/.env
+    line: MINIO_SECRET_KEY={{ lookup('password', 'secretkey chars=ascii_letters,/,digits length=40') }}
+  when: env_file.stat.exists == False
+- name: Remove the stored secret key file
+  file:
+    path: /vagrant/provisioning/secretkey
+    state: absent
