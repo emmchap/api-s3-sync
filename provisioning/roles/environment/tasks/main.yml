@@ -1,0 +1,14 @@
+- name: Check if the env file exixts
+  stat:
+    path: /vagrant/.env
+  register: env_file
+- name: Copy the env file from sample
+  copy:
+    remote_src: yes
+    src: /vagrant/env-sample
+    dest: /vagrant/.env
+  when: env_file.stat.exists == False
+- name: Change env file permissions
+  file:
+    path: /vagrant/.env
+    mode: go-rwx

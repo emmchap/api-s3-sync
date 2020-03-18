@@ -1,0 +1,10 @@
+- name: Tear down existing services
+  become: yes
+  docker_compose:
+    project_src: /vagrant
+    state: absent
+- name: Create and start services
+  become: yes
+  docker_compose:
+    project_src: /vagrant
+    state: present

@@ -1,0 +1,8 @@
+- hosts: all
+  roles:
+    - docker
+    - docker-compose
+    - pip
+    - docker-sdk
+    # - environment
+    # - services

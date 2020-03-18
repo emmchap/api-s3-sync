@@ -1,0 +1,28 @@
+- name: Install python3 distutils
+  become: yes
+  apt:
+    pkg: python3-distutils
+    state: present
+    update_cache: yes
+- name: Check to see if pip is already installed
+  command: pip --version
+  ignore_errors: true
+  changed_when: false
+  check_mode: no
+  register: pip_is_installed
+- name: Download the script to get pip
+  become: yes
+  get_url:
+    url: https://bootstrap.pypa.io/get-pip.py
+    dest: /get-pip.py
+  when: pip_is_installed.rc != 0
+- name: Install pip
+  become: yes
+  command: python3 /get-pip.py
+  when: pip_is_installed.rc != 0
+- name: Remove the script to get pip
+  become: yes
+  file:
+    path: /get-pip.py
+    state: absent
+  when: pip_is_installed.rc != 0
