@@ -25,7 +25,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     volumes:
       - ./app:/usr/src/app
-    command: python app.py
+    command: tail -f /dev/null
+    # command: python app.py
 
 volumes:
   miniodata:

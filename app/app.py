@@ -9,8 +9,8 @@ app = Flask(__name__)
 def sync():
     path = request.args.get('path')
     bucket = request.args.get('bucket')
-    sync = S3Sync()
-    sync.sync(path, bucket)
+    sync = S3Sync(path, bucket)
+    sync.sync()
     return 'done'
 
 if __name__ == '__main__':

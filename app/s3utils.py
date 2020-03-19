@@ -1,45 +1,65 @@
 import os
+import hashlib
 from pathlib import Path
 from bisect import bisect_left
 import boto3
 
 class S3Sync:
 
-    def __init__(self):
+    def __init__(self, local_path, bucket, storage_url=None, access_key=None, secret_key=None):
+        self.source = local_path
+        self.dest = bucket
+        self.storage_url = storage_url if storage_url is not None else 'http://storage:9000'
+        access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']
+        secret_key = secret_key if secret_key is not None else os.environ['MINIO_SECRET_KEY']
         self._s3 = boto3.client('s3',
-                                endpoint_url='http://storage:9000',
-                                aws_access_key_id=os.environ['MINIO_ACCESS_KEY'],
-                                aws_secret_access_key=os.environ['MINIO_SECRET_KEY'])
+                                endpoint_url=self.storage_url ,
+                                aws_access_key_id=access_key,
+                                aws_secret_access_key=secret_key)
 
-    def sync(self, source, dest):
-        paths = self.list_source_objects(source_folder=source)
-        objects = self.list_bucket_objects(dest)
+    def sync(self):
+        self.list_source_objects()
+        self.list_bucket_objects()
 
         # Getting the keys and ordering to perform binary search
         # each time we want to check if any paths is already there.
-        object_keys = [obj['Key'] for obj in objects]
+        object_keys = [obj['Key'] for obj in self.contents]
         object_keys.sort()
-        object_keys_length = len(object_keys)
+        file_paths = self.paths
+        file_paths.sort()
 
-        for path in paths:
-            # Binary search.
-            index = bisect_left(object_keys, path)
-            if index == object_keys_length:
-                # If path not found in object_keys, it has to be sync-ed.
-                self._s3.upload_file(str(Path(source).joinpath(path)),  Bucket=dest, Key=path)
+        missing_files = list(set(file_paths).difference(object_keys))
+        objects_to_delete = list(set(object_keys).difference(file_paths))
+        existing_files= list(set(file_paths).intersection(object_keys))
 
-    def list_bucket_objects(self, bucket):
+        for path in missing_files:
+            self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
+
+        for path in existing_files:
+            s3object = self._s3.get_object(Bucket=self.dest, Key=path)
+            object_hash = s3object['ETag'][1: -1]
+            hasher = hashlib.md5()
+            with open(str(Path(self.source).joinpath(path)), 'rb') as afile:
+                buf = afile.read()
+                hasher.update(buf)
+            file_hash = hasher.hexdigest()
+            if object_hash != file_hash:
+                self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
+        
+        for key in objects_to_delete:
+            self._s3.delete_object(Bucket=self.dest, Key=key)
+
+    def list_bucket_objects(self):
         try:
-            contents = self._s3.list_objects(Bucket=bucket)['Contents']
+            contents = self._s3.list_objects(Bucket=self.dest)['Contents']
         except KeyError:
             # No Contents Key, empty bucket.
-            return []
+            self.contents = []
         else:
-            return contents
+            self.contents = contents
 
-    @staticmethod
-    def list_source_objects(source_folder):
-        path = Path(source_folder)
+    def list_source_objects(self):
+        path = Path(self.source)
 
         paths = []
 
@@ -50,4 +70,4 @@ class S3Sync:
             str_file_path = str_file_path.replace(f'{str(path)}/', "")
             paths.append(str_file_path)
 
-        return paths
+        self.paths = paths
