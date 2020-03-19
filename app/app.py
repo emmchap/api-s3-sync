@@ -1,5 +1,6 @@
 from flask import Flask
 from flask import request
+from flask import jsonify
 from dbutils import dbModel
 from s3utils import S3Sync
 
@@ -9,9 +10,9 @@ app = Flask(__name__)
 def sync():
     path = request.args.get('path')
     bucket = request.args.get('bucket')
-    sync = S3Sync(path, bucket)
-    sync.sync()
-    return 'done'
+    Sync = S3Sync(path, bucket)
+    Sync.sync()
+    return jsonify(Sync.to_object())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port='5000')

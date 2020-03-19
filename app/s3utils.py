@@ -2,6 +2,7 @@ import os
 import hashlib
 from pathlib import Path
 from bisect import bisect_left
+from botocore.client import ClientError
 import boto3
 
 class S3Sync:
@@ -16,28 +17,40 @@ class S3Sync:
                                 endpoint_url=self.storage_url ,
                                 aws_access_key_id=access_key,
                                 aws_secret_access_key=secret_key)
+    
+    def to_object(self):
+        sync_object = {
+            'local_path': str(Path(self.source)),
+            'bucket': self.dest,
+            's3_url': self.storage_url
+        }
+        return sync_object
 
     def sync(self):
         self.list_source_objects()
+        self.create_bucket()
         self.list_bucket_objects()
+        self.compare_files_and_objects()
+        self.upload_missing_files()
+        self.upload_diff_files()
+        self.delete_objects()
+        self.delete_bucket()
+    
+    def delete_bucket(self):
+        if len(self.paths) == 0:
+            self._s3.delete_bucket(Bucket=self.dest)
 
-        # Getting the keys and ordering to perform binary search
-        # each time we want to check if any paths is already there.
-        object_keys = [obj['Key'] for obj in self.contents]
-        object_keys.sort()
-        file_paths = self.paths
-        file_paths.sort()
+    def delete_objects(self):
+        for key in self.objects_to_delete:
+            self._s3.delete_object(Bucket=self.dest, Key=key)
 
-        missing_files = list(set(file_paths).difference(object_keys))
-        objects_to_delete = list(set(object_keys).difference(file_paths))
-        existing_files= list(set(file_paths).intersection(object_keys))
-
-        for path in missing_files:
+    def upload_missing_files(self):
+        for path in self.missing_files:
             self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
-
-        for path in existing_files:
-            s3object = self._s3.get_object(Bucket=self.dest, Key=path)
-            object_hash = s3object['ETag'][1: -1]
+    
+    def upload_diff_files(self):
+        for path in self.existing_files:
+            object_hash = self._s3.get_object(Bucket=self.dest, Key=path)['ETag'][1: -1]
             hasher = hashlib.md5()
             with open(str(Path(self.source).joinpath(path)), 'rb') as afile:
                 buf = afile.read()
@@ -45,29 +58,38 @@ class S3Sync:
             file_hash = hasher.hexdigest()
             if object_hash != file_hash:
                 self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
-        
-        for key in objects_to_delete:
-            self._s3.delete_object(Bucket=self.dest, Key=key)
+    
+    def compare_files_and_objects(self):
+        self.missing_files = list(set(self.paths).difference(self.object_keys))
+        self.missing_files.sort()
+        self.objects_to_delete = list(set(self.object_keys).difference(self.paths))
+        self.objects_to_delete.sort()
+        self.existing_files = list(set(self.paths).intersection(self.object_keys))
+        self.existing_files.sort()
+    
+    def create_bucket(self):
+        try:
+            self._s3.head_bucket(Bucket=self.dest)
+        except ClientError:
+            self._s3.create_bucket(Bucket=self.dest)
 
     def list_bucket_objects(self):
         try:
             contents = self._s3.list_objects(Bucket=self.dest)['Contents']
-        except KeyError:
-            # No Contents Key, empty bucket.
-            self.contents = []
-        else:
             self.contents = contents
+        except KeyError:
+            self.contents = []
+        self.object_keys = [obj['Key'] for obj in self.contents]
+        self.object_keys.sort()
 
     def list_source_objects(self):
         path = Path(self.source)
-
         paths = []
-
         for file_path in path.rglob("*"):
             if file_path.is_dir():
                 continue
             str_file_path = str(file_path)
             str_file_path = str_file_path.replace(f'{str(path)}/', "")
             paths.append(str_file_path)
-
         self.paths = paths
+        self.paths.sort()
