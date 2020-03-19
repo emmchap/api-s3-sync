@@ -1,2 +1,4 @@
 .env
 .vagrant
+app/uploads
+__pycache__
