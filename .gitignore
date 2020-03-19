@@ -2,3 +2,4 @@
 .vagrant
 app/uploads
 __pycache__
+db.sqlite
