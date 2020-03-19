@@ -30,8 +30,13 @@
   file:
     path: /vagrant/provisioning/secretkey
     state: absent
+- name: Check if the upload folder exixts
+  stat:
+    path: /vagrant/app/uploads
+  register: upload_folder
 - name: Recursive copy of upload folder example
   copy:
     remote_src: yes
     src: /vagrant/uploads
     dest: /vagrant/app
+  when: upload_folder.stat.exists == False
