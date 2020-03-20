@@ -1,17 +1,15 @@
-# S3 Synchronization API <!-- omit in toc -->
+# S3 Synchronization API
 
-An exercise to synchronize a local folder with an s3 storage engine. A dev environment can be setup with vagrant and Docker, where we use a minio s3 storage.
+An exercise to synchronize a local folder with an s3 storage engine. A dev environment can be setup with vagrant and Docker, where we use a [minio](https://hub.docker.com/r/minio/minio) s3 storage.
 
-The API is developed with the flask python module, and the s3 client uses boto3.
-
-- [Pre-requisites](#pre-requisites)
-- [Setup](#setup)
-- [API usage](#api-usage)
+The API is developed with the [flask](https://flask.palletsprojects.com/en/1.1.x/) python module, and the s3 client uses [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html).
 
 ## Pre-requisites
 - [Vagrant](https://www.vagrantup.com/)
 - [Virtual Box](https://www.virtualbox.org/)
 - [Ansible](https://www.ansible.com/)
+
+Please note that Ansible is not compatible with Windows.
 
 ## Setup
 
