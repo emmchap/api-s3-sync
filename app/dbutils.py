@@ -12,7 +12,7 @@ def close_connection():
         g.db.close()
 
 def create_model():
-    sql = 'create table if not exists syncs (id integer PRIMARY KEY, source text, dest text, status text)'
+    sql = 'create table if not exists syncs (id integer PRIMARY KEY, status text)'
     g.db.execute(sql)
     g.db.commit()
 
@@ -36,9 +36,9 @@ def cancel_sync(id):
 
 def save_sync(sync_object):
     if sync_object.id is None:
-        sql = 'insert into syncs (source, dest, status) values ("' + sync_object.source + '", "' + sync_object.dest + '", "' + sync_object.status +'")'
+        sql = 'insert into syncs (status) values ("' + sync_object.status +'")'
     else:
-        sql = 'update syncs set source="' + sync_object.source + '", dest="' + sync_object.dest + '", status="' + sync_object.status +'" where id=' + sync_object.id
+        sql = 'update syncs set status="' + sync_object.status +'" where id=' + sync_object.id
     cur = g.db.execute(sql)
     id = str(cur.lastrowid)
     g.db.commit()

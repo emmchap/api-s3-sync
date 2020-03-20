@@ -9,25 +9,28 @@ from dbutils import save_sync,get_sync_status
 
 class S3Sync:
 
-    def __init__(self, local_path, bucket, storage_url=None, access_key=None, secret_key=None, wait=None):
-        self.source = local_path
-        self.dest = bucket
+    def __init__(self, source=None, dest=None, storage_url=None, access_key=None, secret_key=None, wait=None):
+        self.source = source if source is not None else 'uploads'
+        self.dest = dest if dest is not None else 'mybucket'
         self.storage_url = storage_url if storage_url is not None else 'http://storage:9000'
-        self.status = 'running'
-        self.wait = wait if wait is not None else 0
-        self.id = None
-        self.id = save_sync(self)
-        access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']
-        secret_key = secret_key if secret_key is not None else os.environ['MINIO_SECRET_KEY']
+        self.access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']
+        self.secret_key = secret_key if secret_key is not None else os.environ['MINIO_SECRET_KEY']
         self._s3 = boto3.client('s3',
                                 endpoint_url=self.storage_url ,
-                                aws_access_key_id=access_key,
-                                aws_secret_access_key=secret_key)
+                                aws_access_key_id=self.access_key,
+                                aws_secret_access_key=self.secret_key)
+        self.wait = wait if wait is not None else 0
+        self.wait = int(self.wait)
+        self.status = 'init'
+        self.id = None
+        self.id = save_sync(self)
     
     def cancelled(self):
         return get_sync_status(self.id)['status'] == 'cancelled'
 
     def sync_files(self):
+        self.status = 'running'
+        self.id = save_sync(self)
         self.list_source_objects()
         self.create_bucket()
         self.list_bucket_objects()

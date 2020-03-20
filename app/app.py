@@ -9,10 +9,13 @@ app = Flask(__name__)
 
 @app.route('/sync', methods=['GET'])
 def sync():
-    path = request.args.get('path')
-    bucket = request.args.get('bucket')
-    wait = int(request.args.get('wait'))
-    sync_object = S3Sync(path, bucket, wait=wait)
+    source = request.args.get('source')
+    dest = request.args.get('dest')
+    storage_url = request.args.get('storage_url')
+    access_key = request.args.get('access_key')
+    secret_key = request.args.get('secret_key')
+    wait = request.args.get('wait')
+    sync_object = S3Sync(source=source, dest=dest, storage_url=storage_url, access_key=access_key, secret_key=secret_key, wait=wait)
     sync_object.sync_files()
     return jsonify(get_sync_status(sync_object.id))
 
