@@ -1,10 +1,11 @@
 import os
+import time
 import hashlib
 import boto3
 from pathlib import Path
 from bisect import bisect_left
 from botocore.client import ClientError
-from dbutils import save_db
+from dbutils import save_sync
 
 class S3Sync:
 
@@ -13,23 +14,15 @@ class S3Sync:
         self.dest = bucket
         self.storage_url = storage_url if storage_url is not None else 'http://storage:9000'
         self.status = 'running'
-        self.id = save_db(self)
+        self.id = None
+        self.id = save_sync(self)
+        time.sleep(5)
         access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']
         secret_key = secret_key if secret_key is not None else os.environ['MINIO_SECRET_KEY']
         self._s3 = boto3.client('s3',
                                 endpoint_url=self.storage_url ,
                                 aws_access_key_id=access_key,
                                 aws_secret_access_key=secret_key)
-    
-    def to_object(self):
-        sync_object = {
-            'id': self.id,
-            'local_path': str(Path(self.source)),
-            'bucket': self.dest,
-            's3_url': self.storage_url,
-            'status': self.status
-        }
-        return sync_object
 
     def sync(self):
         self.list_source_objects()
@@ -41,6 +34,7 @@ class S3Sync:
         self.delete_objects()
         self.delete_bucket()
         self.status = 'success'
+        self.id = save_sync(self)
     
     def delete_bucket(self):
         if len(self.paths) == 0:

@@ -2,7 +2,7 @@ import asyncio
 from flask import Flask
 from flask import request
 from flask import jsonify
-from dbutils import get_db,close_connection,create_model,query_db
+from dbutils import get_db,close_connection,create_model,get_sync,get_running_syncs
 from s3utils import S3Sync
 
 app = Flask(__name__)
@@ -13,15 +13,16 @@ def sync():
     bucket = request.args.get('bucket')
     sync_object = S3Sync(path, bucket)
     sync_object.sync()
-    return jsonify(sync_object.to_object())
+    return jsonify(get_sync(sync_object.id))
 
 @app.route('/get', methods=['GET'])
 def get():
-    path = request.args.get('path')
-    bucket = request.args.get('bucket')
-    Sync = S3Sync(path, bucket)
-    Sync.sync()
-    return jsonify(Sync.to_object())
+    id = request.args.get('id')
+    return jsonify(get_sync(id))
+
+@app.route('/runnings', methods=['GET'])
+def runnings():
+    return jsonify(get_running_syncs())
 
 @app.before_request
 def before_request():
