@@ -22,11 +22,17 @@ def query_db(query, args=(), one=False):
                for idx, value in enumerate(row)) for row in cur.fetchall()]
     return (rv[0] if rv else None) if one else rv
 
-def get_sync(id):
+def get_sync_status(id):
     return query_db('select id,status from syncs where id=' + id)[0]
 
 def get_running_syncs():
     return query_db('select id from syncs where status like "running"')
+
+def cancel_sync(id):
+    if get_sync_status(id)['status'] == 'running':
+        sql = 'update syncs set status="cancelled" where id=' + id
+        g.db.execute(sql)
+        g.db.commit()
 
 def save_sync(sync_object):
     if sync_object.id is None:

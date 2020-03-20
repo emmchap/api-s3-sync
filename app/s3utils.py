@@ -1,30 +1,33 @@
 import os
-import time
 import hashlib
 import boto3
+import time
 from pathlib import Path
 from bisect import bisect_left
 from botocore.client import ClientError
-from dbutils import save_sync
+from dbutils import save_sync,get_sync_status
 
 class S3Sync:
 
-    def __init__(self, local_path, bucket, storage_url=None, access_key=None, secret_key=None):
+    def __init__(self, local_path, bucket, storage_url=None, access_key=None, secret_key=None, wait=None):
         self.source = local_path
         self.dest = bucket
         self.storage_url = storage_url if storage_url is not None else 'http://storage:9000'
         self.status = 'running'
+        self.wait = wait if wait is not None else 0
         self.id = None
         self.id = save_sync(self)
-        time.sleep(5)
         access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']
         secret_key = secret_key if secret_key is not None else os.environ['MINIO_SECRET_KEY']
         self._s3 = boto3.client('s3',
                                 endpoint_url=self.storage_url ,
                                 aws_access_key_id=access_key,
                                 aws_secret_access_key=secret_key)
+    
+    def cancelled(self):
+        return get_sync_status(self.id)['status'] == 'cancelled'
 
-    def sync(self):
+    def sync_files(self):
         self.list_source_objects()
         self.create_bucket()
         self.list_bucket_objects()
@@ -33,8 +36,9 @@ class S3Sync:
         self.upload_diff_files()
         self.delete_objects()
         self.delete_bucket()
-        self.status = 'success'
-        self.id = save_sync(self)
+        if not self.cancelled():
+            self.status = 'success'
+            self.id = save_sync(self)
     
     def delete_bucket(self):
         if len(self.paths) == 0:
@@ -42,14 +46,23 @@ class S3Sync:
 
     def delete_objects(self):
         for key in self.objects_to_delete:
+            if (self.cancelled()):
+                return
+            time.sleep(self.wait)
             self._s3.delete_object(Bucket=self.dest, Key=key)
 
     def upload_missing_files(self):
         for path in self.missing_files:
+            if (self.cancelled()):
+                return
+            time.sleep(self.wait)
             self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
     
     def upload_diff_files(self):
         for path in self.existing_files:
+            if (self.cancelled()):
+                return
+            time.sleep(self.wait)
             object_hash = self._s3.get_object(Bucket=self.dest, Key=path)['ETag'][1: -1]
             hasher = hashlib.md5()
             with open(str(Path(self.source).joinpath(path)), 'rb') as afile:
