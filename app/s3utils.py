@@ -21,7 +21,8 @@ class S3Sync:
                                 aws_secret_access_key=self.secret_key)
         self.wait = wait if wait is not None else 0
         self.wait = int(self.wait)
-        self.status = 'init'
+        self.status = 'running'
+        self.progress = '0%'
         self.id = None
         self.id = save_sync(self)
     
@@ -33,8 +34,6 @@ class S3Sync:
             self.status = 'error (s3 storage connection)'
             save_sync(self)
             return
-        self.status = 'running'
-        self.id = save_sync(self)
         self.list_source_objects()
         self.create_bucket()
         self.list_bucket_objects()
@@ -64,6 +63,7 @@ class S3Sync:
                 return
             time.sleep(self.wait)
             self._s3.delete_object(Bucket=self.dest, Key=key)
+            self.update_progress()
 
     def upload_missing_files(self):
         for path in self.missing_files:
@@ -71,6 +71,7 @@ class S3Sync:
                 return
             time.sleep(self.wait)
             self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
+            self.update_progress()
     
     def upload_diff_files(self):
         for path in self.existing_files:
@@ -85,6 +86,13 @@ class S3Sync:
             file_hash = hasher.hexdigest()
             if object_hash != file_hash:
                 self._s3.upload_file(str(Path(self.source).joinpath(path)), Bucket=self.dest, Key=path)
+            self.update_progress()
+    
+    def update_progress(self):
+        self.current_operations += 1
+        self.progress = str(round(self.current_operations / self.total_operations * 100)) + '%'
+        self.status = get_sync_status(self.id)['status']
+        save_sync(self)
     
     def compare_files_and_objects(self):
         self.missing_files = list(set(self.paths).difference(self.object_keys))
@@ -93,6 +101,8 @@ class S3Sync:
         self.objects_to_delete.sort()
         self.existing_files = list(set(self.paths).intersection(self.object_keys))
         self.existing_files.sort()
+        self.total_operations = len(self.missing_files) + len(self.objects_to_delete) + len(self.existing_files)
+        self.current_operations = 0
     
     def create_bucket(self):
         try:
