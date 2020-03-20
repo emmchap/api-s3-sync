@@ -29,6 +29,10 @@ class S3Sync:
         return get_sync_status(self.id)['status'] == 'cancelled'
 
     def sync_files(self):
+        if not self.check_s3_connection():
+            self.status = 'error (s3 storage connection)'
+            save_sync(self)
+            return
         self.status = 'running'
         self.id = save_sync(self)
         self.list_source_objects()
@@ -42,6 +46,13 @@ class S3Sync:
         if not self.cancelled():
             self.status = 'success'
             self.id = save_sync(self)
+    
+    def check_s3_connection(self):
+        try:
+            self._s3.list_buckets()
+            return True
+        except ClientError:
+            return False
     
     def delete_bucket(self):
         if len(self.paths) == 0:
