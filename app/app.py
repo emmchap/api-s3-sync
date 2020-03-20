@@ -7,6 +7,7 @@ from s3utils import S3Sync
 
 app = Flask(__name__)
 
+# A route to start a synchronisation job
 @app.route('/sync', methods=['GET'])
 def sync():
     source = request.args.get('source')
@@ -19,29 +20,35 @@ def sync():
     sync_object.sync_files()
     return jsonify(get_sync_status(sync_object.id))
 
+# A route to get a synchronisation status
 @app.route('/get', methods=['GET'])
 def get():
     id = request.args.get('id')
     return jsonify(get_sync_status(id))
 
+# A route to get all running synchronisations
 @app.route('/runnings', methods=['GET'])
 def runnings():
     return jsonify(get_running_syncs())
 
+# A route to cancel and stop a synchronisation
 @app.route('/cancel', methods=['GET'])
 def stop():
     id = request.args.get('id')
     cancel_sync(id)
     return jsonify(get_sync_status(id))
 
+# We ensure a database connection for each request
 @app.before_request
 def before_request():
     get_db()
     create_model()
 
+# We ensure a database closure at the end of each connection
 @app.teardown_request
 def teardown_request(exception):
     close_connection()
 
+# We listen for all ports, because we are in a container
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port='5000')
