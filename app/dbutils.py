@@ -32,7 +32,7 @@ def get_sync_status(id):
 
 # A method to get all running synchronisations
 def get_running_syncs():
-    return query_db('select id from syncs where status like "running"')
+    return query_db('select id, status, progress from syncs where status like "running"')
 
 # A method to cancel and stop a synchronisation
 def cancel_sync(id):

@@ -12,7 +12,8 @@ from dbutils import save_sync,get_sync_status
 class S3Sync:
     def __init__(self, source=None, dest=None, storage_url=None, access_key=None, secret_key=None, wait=None):
         # We help the queries with default parameters
-        self.source = source if source is not None else 'uploads'
+        self.source = source if source is not None else '.'
+        self.source = os.path.join('uploads', self.source)
         self.dest = dest if dest is not None else 'mybucket'
         self.storage_url = storage_url if storage_url is not None else 'http://storage:9000'
         self.access_key = access_key if access_key is not None else os.environ['MINIO_ACCESS_KEY']

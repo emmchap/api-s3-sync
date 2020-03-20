@@ -20,16 +20,16 @@ def sync():
     sync_object.sync_files()
     return jsonify(get_sync_status(sync_object.id))
 
+# A route to get all running synchronisations
+@app.route('/runnings', methods=['GET'])
+def runnings():
+    return jsonify(get_running_syncs())
+
 # A route to get a synchronisation status
 @app.route('/get', methods=['GET'])
 def get():
     id = request.args.get('id')
     return jsonify(get_sync_status(id))
-
-# A route to get all running synchronisations
-@app.route('/runnings', methods=['GET'])
-def runnings():
-    return jsonify(get_running_syncs())
 
 # A route to cancel and stop a synchronisation
 @app.route('/cancel', methods=['GET'])
